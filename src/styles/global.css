@@ -1,1 +1,44 @@
+/* Global Tailwind entry point and accessibility overrides for the persisted high-contrast mode. */
 @import "tailwindcss";
+
+html.high-contrast {
+  color-scheme: dark;
+}
+
+html.high-contrast body {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+html.high-contrast header {
+  background-color: #000 !important;
+  border-bottom: 2px solid #fff !important;
+}
+
+html.high-contrast a,
+html.high-contrast button,
+html.high-contrast h1,
+html.high-contrast h2,
+html.high-contrast h3,
+html.high-contrast p,
+html.high-contrast span {
+  color: #fff !important;
+}
+
+html.high-contrast [class*='bg-slate-'],
+html.high-contrast [class*='bg-blue-'],
+html.high-contrast [class*='bg-purple-'] {
+  background-color: #000 !important;
+}
+
+html.high-contrast [class*='border-'] {
+  border-color: #fff !important;
+}
+
+html.high-contrast a:focus-visible,
+html.high-contrast button:focus-visible,
+html.high-contrast input:focus-visible {
+  outline: 3px solid #ff0 !important;
+  outline-offset: 3px;
+  box-shadow: none !important;
+}

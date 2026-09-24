@@ -1,7 +1,19 @@
-import { eq, asc } from 'drizzle-orm';
+/**
+ * Data-access helpers for retrieving game records and filtering the catalog.
+ *
+ * The helpers keep the database access logic in one place, so Astro pages can
+ * request filtered game lists while tests exercise the same SQL against an
+ * in-memory database.
+ */
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Database } from './db';
 import { games, categories, publishers } from '../../db/schema';
 import type { Game } from '../types/game';
+
+export type GameFilterOptions = {
+    categoryIds?: number[];
+    publisherIds?: number[];
+};
 
 const gameSelection = {
     id: games.id,
@@ -42,28 +54,93 @@ function mapGame(row: GameSelectionRow): Game {
     };
 }
 
-function baseGamesQuery(db: Database) {
+function normalizeFilterIds(ids?: number[]): number[] | undefined {
+    if (!ids || ids.length === 0) {
+        return undefined;
+    }
+
+    return [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+}
+
+type FilterableQuery<T> = {
+    where: (...conditions: Parameters<typeof and>) => FilterableQuery<T>;
+    orderBy: (...args: unknown[]) => T[];
+    get: () => T | undefined;
+};
+
+function baseGamesQuery(db: Database): FilterableQuery<GameSelectionRow> {
     return db
         .select(gameSelection)
         .from(games)
         .leftJoin(categories, eq(games.categoryId, categories.id))
-        .leftJoin(publishers, eq(games.publisherId, publishers.id));
+        .leftJoin(publishers, eq(games.publisherId, publishers.id)) as unknown as FilterableQuery<GameSelectionRow>;
 }
 
-/** All games ordered by title. */
-export async function getAllGames(db: Database): Promise<Game[]> {
-    const rows = await baseGamesQuery(db).orderBy(asc(games.title));
+function baseGameIdsQuery(db: Database): FilterableQuery<{ id: number }> {
+    return db.select({ id: games.id }).from(games) as unknown as FilterableQuery<{ id: number }>;
+}
+
+function applyFilters<T>(query: FilterableQuery<T>, filters?: GameFilterOptions): FilterableQuery<T> {
+    const categoryIds = normalizeFilterIds(filters?.categoryIds);
+    const publisherIds = normalizeFilterIds(filters?.publisherIds);
+
+    const clauses: Parameters<typeof and> = [];
+
+    if (categoryIds && categoryIds.length > 0) {
+        clauses.push(inArray(games.categoryId, categoryIds));
+    }
+
+    if (publisherIds && publisherIds.length > 0) {
+        clauses.push(inArray(games.publisherId, publisherIds));
+    }
+
+    return clauses.length > 0 ? query.where(and(...clauses)) : query;
+}
+
+/**
+ * Retrieves games ordered by title, optionally filtered by category and/or publisher.
+ *
+ * @param db - Drizzle database client used to query game records.
+ * @param filters - Optional category and publisher IDs to narrow the result set.
+ * @returns Games ordered alphabetically by title.
+ */
+export async function getAllGames(db: Database, filters?: GameFilterOptions): Promise<Game[]> {
+    const rows = await applyFilters(baseGamesQuery(db), filters).orderBy(asc(games.title));
     return rows.map(mapGame);
 }
 
-/** All game ids ordered by title. */
-export async function getAllGameIds(db: Database): Promise<number[]> {
-    const rows = await db.select({ id: games.id }).from(games).orderBy(asc(games.title));
+/**
+ * Retrieves all game ids for the current catalog view, with optional category and
+ * publisher filters applied.
+ *
+ * @param db - Drizzle database client used to query game ids.
+ * @param filters - Optional category and publisher IDs to narrow the result set.
+ * @returns Game ids ordered alphabetically by title.
+ */
+export async function getAllGameIds(db: Database, filters?: GameFilterOptions): Promise<number[]> {
+    const rows = await applyFilters(baseGameIdsQuery(db), filters).orderBy(asc(games.title));
     return rows.map((row) => row.id);
 }
 
-/** A single game by id, or null when it does not exist. */
+/**
+ * Retrieves a single game by id, or null when it does not exist.
+ *
+ * @param db - Drizzle database client used to query the game record.
+ * @param id - Game id to look up.
+ * @returns The matching game, or null when the id is not present.
+ */
 export async function getGameById(db: Database, id: number): Promise<Game | null> {
     const row = await baseGamesQuery(db).where(eq(games.id, id)).get();
     return row ? mapGame(row) : null;
+}
+
+/**
+ * Retrieves games using the same filter semantics as `getAllGames`.
+ *
+ * @param db - Drizzle database client used to query game records.
+ * @param filters - Optional category and publisher IDs to narrow the result set.
+ * @returns Games ordered alphabetically by title.
+ */
+export async function getFilteredGames(db: Database, filters?: GameFilterOptions): Promise<Game[]> {
+    return getAllGames(db, filters);
 }

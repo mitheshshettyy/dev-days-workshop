@@ -1,4 +1,5 @@
 ---
+// Site header with keyboard-accessible navigation and the persistent contrast preference control.
 import Menu from '../assets/icons/menu.svg';
 ---
 
@@ -18,6 +19,15 @@ import Menu from '../assets/icons/menu.svg';
       </div>
       <div class="text-xl font-bold"><a href="/" class="hover:underline">Tailspin Toys</a></div>
     </div>
+    <button
+      id="contrast-toggle"
+      type="button"
+      class="rounded bg-blue-900 px-3 py-2 text-sm font-medium hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-500"
+      aria-pressed="false"
+      data-testid="high-contrast-toggle"
+    >
+      High contrast
+    </button>
   </div>
 </header>
 
@@ -53,6 +63,36 @@ import Menu from '../assets/icons/menu.svg';
         menu.classList.add('hidden');
         menuToggle.setAttribute('aria-expanded', 'false');
         menuToggle.focus();
+      }
+    });
+  }
+
+  const contrastToggle = document.getElementById('contrast-toggle');
+  const contrastStorageKey = 'tailspin-high-contrast';
+
+  if (contrastToggle) {
+    const setHighContrast = (enabled: boolean) => {
+      document.documentElement.classList.toggle('high-contrast', enabled);
+      contrastToggle.setAttribute('aria-pressed', String(enabled));
+      contrastToggle.textContent = enabled ? 'Standard contrast' : 'High contrast';
+    };
+
+    let enabled = document.documentElement.classList.contains('high-contrast');
+    try {
+      enabled = window.localStorage.getItem(contrastStorageKey) === 'true';
+    } catch {
+      // Keep the preference applied by the head script when storage is unavailable.
+    }
+
+    setHighContrast(enabled);
+
+    contrastToggle.addEventListener('click', () => {
+      const nextEnabled = !document.documentElement.classList.contains('high-contrast');
+      setHighContrast(nextEnabled);
+      try {
+        window.localStorage.setItem(contrastStorageKey, String(nextEnabled));
+      } catch {
+        // The preference remains active for this page when storage is unavailable.
       }
     });
   }

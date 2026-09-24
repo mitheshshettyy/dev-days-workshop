@@ -48,7 +48,9 @@ The SQLite database is built from `db/games.csv` — there is no live data to mi
 
 The home page game catalog can be narrowed using one or more category filters,
 publisher filters, or both together. Filter selections update the visible cards
-without leaving the catalog page and can be cleared with one action.
+without leaving the catalog page and can be cleared with one action. The catalog
+shows six games per page with Previous and Next controls; changing filters resets
+the list to the first page.
 
 ```bash
 npm run db:generate   # generate a migration after editing db/schema.ts

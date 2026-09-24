@@ -43,6 +43,35 @@ test.describe('Game Listing and Navigation', () => {
     });
   });
 
+  test('should paginate games with previous and next controls', async ({ page }) => {
+    await test.step('Navigate to homepage', async () => {
+      await page.goto('/');
+    });
+
+    await test.step('Verify the first page has six games and only Next is enabled', async () => {
+      await expect(page.getByTestId('pagination')).toBeVisible();
+      await expect(page.locator('[data-testid="game-card"]:not([hidden])')).toHaveCount(6);
+      await expect(page.getByTestId('pagination-status')).toHaveText('Page 1 of 4');
+      await expect(page.getByTestId('previous-page-button')).toBeDisabled();
+      await expect(page.getByTestId('next-page-button')).toBeEnabled();
+    });
+
+    await test.step('Move to the next page', async () => {
+      await page.getByTestId('next-page-button').click();
+      await expect(page).toHaveURL('/?page=2');
+      await expect(page.locator('[data-testid="game-card"]:not([hidden])')).toHaveCount(6);
+      await expect(page.getByTestId('pagination-status')).toHaveText('Page 2 of 4');
+      await expect(page.getByTestId('previous-page-button')).toBeEnabled();
+    });
+
+    await test.step('Return to the previous page', async () => {
+      await page.getByTestId('previous-page-button').click();
+      await expect(page).toHaveURL('/');
+      await expect(page.getByTestId('pagination-status')).toHaveText('Page 1 of 4');
+      await expect(page.getByTestId('previous-page-button')).toBeDisabled();
+    });
+  });
+
   test('should navigate to correct game details page when clicking on a game', async ({ page }) => {
     let gameId: string | null;
     let gameTitle: string | null;
